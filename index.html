@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>모바일 통합 테트리스 (수정)</title>
+    <title>모바일 통합 테트리스 (Final)</title>
     
     <style>
-        /*
-         * CSS 스타일링 (모바일 최적화)
-         */
+        /* CSS 스타일링 (이전과 동일) */
         body {
             display: flex;
             flex-direction: column;
@@ -35,7 +33,6 @@
             padding: 15px;
         }
 
-        /* 정보 패널 */
         #info-panel {
             width: 100%;
             display: flex;
@@ -69,7 +66,6 @@
             background-color: #e67e22;
         }
 
-        /* 게임 보드 스타일링 (10x20) */
         #grid {
             display: grid;
             grid-template-columns: repeat(10, 1fr);
@@ -79,15 +75,13 @@
             background-color: #1c2833;
         }
 
-        /* 개별 셀(블록) 스타일링 */
         .square {
             border: 1px solid rgba(255, 255, 255, 0.05); 
             box-sizing: border-box;
         }
 
-        /* 고정된 블록을 나타내는 클래스 */
         .taken {
-            border: 1px solid #1c2833 !important; /* 고정된 블록은 테두리 강조를 줄임 */
+            border: 1px solid #1c2833 !important; 
             opacity: 0.9;
         }
 
@@ -153,7 +147,7 @@
 
     <script>
         //
-        // JAVASCRIPT 게임 로직 (수정 및 구현 완료)
+        // JAVASCRIPT 게임 로직 (충돌 감지 개선)
         //
 
         const grid = document.getElementById('grid');
@@ -166,12 +160,11 @@
         const height = 20;
         let score = 0;
         let level = 1;
-        let squares = []; // 게임 보드의 DOM 요소 저장 배열
+        let squares = []; 
         let timerId = null;
-        let dropSpeed = 1000; // 초기 드롭 속도 (1초)
+        let dropSpeed = 1000; 
 
-        // ** 1. 게임 보드 초기화 및 렌더링 **
-
+        // 1. 게임 보드 초기화 및 렌더링
         function createBoard() {
             for (let i = 0; i < width * height; i++) {
                 const square = document.createElement('div');
@@ -179,23 +172,21 @@
                 grid.appendChild(square);
                 squares.push(square);
             }
-            // 바닥 충돌 감지를 위한 보이지 않는 1줄 추가
+            // 바닥 경계선 역할을 할 1줄 (10개) 추가
             for (let i = 0; i < width; i++) {
                 const stopper = document.createElement('div');
-                stopper.classList.add('square', 'taken');
-                stopper.style.backgroundColor = '#555'; // 충돌용 색상
+                stopper.classList.add('square', 'taken', 'bottom-stopper'); // bottom-stopper 클래스 추가
+                stopper.style.backgroundColor = 'transparent'; // 투명하게 설정
                 grid.appendChild(stopper);
                 squares.push(stopper);
             }
         }
         createBoard();
 
-        // ** 2. 테트로미노 데이터 및 색상 **
-
-        // 7가지 테트로미노 모양 (각각 4가지 회전 상태)
+        // 2. 테트로미노 데이터 및 색상
         const theTetrominoes = [
             [[1, width + 1, width * 2 + 1, 2], [width, width + 1, width + 2, width * 2 + 2], [1, width + 1, width * 2 + 1, width * 2], [width, width * 2, width * 2 + 1, width * 2 + 2]], // L
-            [[0, 1, width + 1, width * 2 + 1], [width, width + 1, width + 2, width * 2], [1, width + 1, width * 2 + 1, width * 2 + 2], [2, width + 2, width + 1, width]], // J (수정된 J)
+            [[0, 1, width + 1, width * 2 + 1], [width, width + 1, width + 2, width * 2], [1, width + 1, width * 2 + 1, width * 2 + 2], [2, width + 2, width + 1, width]], // J
             [[1, width, width + 1, width + 2], [1, width + 1, width * 2 + 1, width], [width, width + 1, width + 2, width * 2 + 1], [1, width + 1, width * 2 + 1, width + 2]], // T
             [[1, width + 1, width * 2 + 1, width * 3 + 1], [width, width + 1, width + 2, width + 3], [1, width + 1, width * 2 + 1, width * 3 + 1], [width, width + 1, width + 2, width + 3]], // I
             [[0, 1, width, width + 1], [0, 1, width, width + 1], [0, 1, width, width + 1], [0, 1, width, width + 1]], // O
@@ -205,15 +196,14 @@
         
         const colors = ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#2ecc71', '#e67e22', '#1abc9c'];
 
-        let currentPosition = 4; // 블록의 시작 위치
+        let currentPosition = 4;
         let currentRotation = 0;
         let random = Math.floor(Math.random() * theTetrominoes.length);
         let current = theTetrominoes[random][currentRotation];
         let currentColor = colors[random];
         let nextRandom = Math.floor(Math.random() * theTetrominoes.length);
 
-        // ** 3. 블록 그리기/지우기 **
-
+        // 3. 블록 그리기/지우기 (이전과 동일)
         function draw() {
             current.forEach(index => {
                 squares[currentPosition + index].classList.add('tetromino');
@@ -228,59 +218,75 @@
             });
         }
 
-        // ** 4. 충돌 감지 및 이동 **
-
-        function checkCollision() {
-            // 다음에 블록이 차지할 위치 중 하나라도 'taken' 클래스를 가지거나 바닥을 벗어나면 충돌
-            return current.some(index => 
-                squares[currentPosition + index + width].classList.contains('taken')
-            );
+        // 4. 충돌 감지 및 이동 (가장 중요: **개선**)
+        
+        // 충돌 여부를 확인하는 핵심 함수
+        function checkCollision(position = currentPosition, tetromino = current) {
+            return tetromino.some(index => {
+                const nextSquareIndex = position + index + width;
+                // 1. 바닥 경계 및 이미 채워진 블록 확인
+                if (nextSquareIndex >= squares.length || 
+                    squares[nextSquareIndex].classList.contains('taken')) {
+                    return true;
+                }
+                return false;
+            });
         }
 
+        // 좌우 이동 및 경계 체크
         function move(direction) {
             undraw();
             
-            // 왼쪽/오른쪽 경계선 체크
+            // 이동할 위치가 좌우 경계인지 체크
             const isAtLeftEdge = current.some(index => (currentPosition + index) % width === 0)
             const isAtRightEdge = current.some(index => (currentPosition + index) % width === width - 1)
 
-            if (direction === -1) { // 왼쪽 이동
-                if (!isAtLeftEdge) currentPosition += direction;
-            } else if (direction === 1) { // 오른쪽 이동
-                if (!isAtRightEdge) currentPosition += direction;
+            let newPosition = currentPosition;
+            if (direction === -1 && !isAtLeftEdge) { // 왼쪽 이동
+                newPosition = currentPosition - 1;
+            } else if (direction === 1 && !isAtRightEdge) { // 오른쪽 이동
+                newPosition = currentPosition + 1;
             }
             
-            // 이동 후 충돌이 발생하면 원위치 (다른 블록을 뚫고 이동 방지)
-            if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
-                currentPosition -= direction; // 되돌리기
+            // 이동할 위치에 이미 고정된 블록이 있는지 확인
+            const isCollision = current.some(index => squares[newPosition + index].classList.contains('taken'));
+            
+            if (!isCollision) {
+                currentPosition = newPosition;
             }
-
+            
             draw();
         }
 
+        // 블록 회전
         function rotate() {
             undraw();
             
             const originalRotation = currentRotation;
             currentRotation = (currentRotation + 1) % current.length;
-            current = theTetrominoes[random][currentRotation];
+            let nextTetromino = theTetrominoes[random][currentRotation];
 
-            // 벽이나 블록에 막힐 경우 (간단한 처리: 회전 취소)
-            const isAtLeftEdge = current.some(index => (currentPosition + index) % width === 0)
-            const isAtRightEdge = current.some(index => (currentPosition + index) % width === width - 1)
-            
-            if (current.some(index => squares[currentPosition + index].classList.contains('taken')) || 
-                (isAtLeftEdge && isAtRightEdge)) { 
+            // 회전 후 경계를 벗어나거나 블록과 겹치는지 확인
+            const isCollision = nextTetromino.some(index => {
+                const squareIndex = currentPosition + index;
+                const isTaken = squares[squareIndex].classList.contains('taken');
+                const isBeyondLeft = (squareIndex % width === 0 && (currentPosition + index) % width !== 0);
+                const isBeyondRight = (squareIndex % width === width - 1 && (currentPosition + index) % width !== width - 1);
                 
-                // 회전 취소
+                return isTaken || isBeyondLeft || isBeyondRight;
+            });
+            
+            // 충돌이 발생하면 회전 취소
+            if (isCollision) {
                 currentRotation = originalRotation;
-                current = theTetrominoes[random][currentRotation];
+                nextTetromino = theTetrominoes[random][currentRotation];
             }
+            
+            current = nextTetromino;
             draw();
         }
         
-        // ** 5. 블록 고정 및 새 블록 생성 **
-
+        // 5. 블록 고정 및 새 블록 생성 (이전과 동일)
         function merge() {
             current.forEach(index => {
                 squares[currentPosition + index].classList.add('taken');
@@ -291,7 +297,6 @@
         }
 
         function generateNewTetromino() {
-            // 다음 블록 준비
             random = nextRandom;
             nextRandom = Math.floor(Math.random() * theTetrominoes.length);
             current = theTetrominoes[random][0];
@@ -299,7 +304,7 @@
             currentPosition = 4;
             currentRotation = 0;
             
-            // 게임 오버 체크 (새 블록이 생성되자마자 충돌하면 게임 오버)
+            // 게임 오버 체크
             if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
                 gameOver();
                 return;
@@ -308,37 +313,36 @@
             draw();
         }
 
-        // ** 6. 줄 제거 및 점수 계산 **
-
+        // 6. 줄 제거 및 점수 계산 (이전과 동일)
         function checkAndClearLines() {
             for (let i = 0; i < height * width; i += width) {
-                const row = Array.from({length: width}, (_, j) => i + j); // 한 줄의 인덱스
+                const row = Array.from({length: width}, (_, j) => i + j); 
 
-                // 한 줄 전체가 'taken'인지 확인
                 const isRowTaken = row.every(index => 
-                    squares[index].classList.contains('taken')
+                    squares[index].classList.contains('taken') && !squares[index].classList.contains('bottom-stopper')
                 );
 
                 if (isRowTaken) {
                     score += 10;
                     scoreDisplay.textContent = score;
 
-                    // 1. 줄 지우기
+                    // 줄 지우기 및 내리기
                     row.forEach(index => {
                         squares[index].classList.remove('taken', 'tetromino');
                         squares[index].style.backgroundColor = '';
                     });
 
-                    // 2. 윗 줄 내리기
                     const squaresRemoved = squares.splice(i, width);
                     squares = squaresRemoved.concat(squares);
                     squares.forEach(cell => grid.appendChild(cell));
+                    
+                    // 인덱스 i를 재조정하여 다음 줄을 올바르게 검사
+                    i -= width; 
                 }
             }
         }
 
-        // ** 7. 게임 오버 **
-
+        // 7. 게임 오버 (이전과 동일)
         function gameOver() {
             clearInterval(timerId);
             timerId = null;
@@ -346,11 +350,10 @@
             startButton.textContent = '다시 시작';
         }
 
-        // ** 8. 메인 루프 (Drop) **
-
+        // 8. 메인 루프 (Drop)
         function drop() {
             undraw();
-            if (checkCollision()) {
+            if (checkCollision(currentPosition)) { // 현재 위치에서 다음 칸 충돌 확인
                 merge();
             } else {
                 currentPosition += width;
@@ -358,7 +361,7 @@
             draw();
         }
 
-        // ** 9. 이벤트 리스너 및 게임 제어 **
+        // 9. 이벤트 리스너 및 게임 제어
         
         function startGame() {
              if (timerId) {
@@ -367,12 +370,10 @@
                 startButton.textContent = '재개';
             } else {
                 if (scoreDisplay.textContent.includes('Game Over')) {
-                    // 게임 초기화
                     location.reload(); 
                     return;
                 }
                 
-                // 게임 시작/재개
                 if (!timerId) {
                     timerId = setInterval(drop, dropSpeed); 
                     startButton.textContent = '일시정지';
@@ -385,25 +386,25 @@
         document.getElementById('rotate-button').addEventListener('click', rotate);
         document.getElementById('left-button').addEventListener('click', () => move(-1));
         document.getElementById('right-button').addEventListener('click', () => move(1));
+        
         document.getElementById('down-button').addEventListener('click', () => {
-             // Soft Drop (잠깐 빠르게 내리기)
+             // Soft Drop: 잠깐 드롭 속도 빠르게
              clearInterval(timerId);
              drop();
              timerId = setInterval(drop, dropSpeed);
         });
 
         document.getElementById('drop-button').addEventListener('click', () => {
-            // Hard Drop (바닥까지 한 번에 내리기)
+            // Hard Drop: 블록을 충돌 지점까지 한 번에 내리기
             undraw();
-            while (!checkCollision()) {
+            while (!checkCollision(currentPosition)) {
                 currentPosition += width;
             }
-            currentPosition -= width;
+            currentPosition -= width; // 충돌 직전 위치로 되돌리기
             draw();
             merge();
         });
 
-        // 초기 시작 블록 설정
         draw(); 
         
     </script>
