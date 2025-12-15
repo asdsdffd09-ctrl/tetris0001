@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>모바일 통합 테트리스</title>
+    
+    <style>
+        /*
+         * CSS 스타일링
+         */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* 화면 상단부터 시작 */
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #2c3e50; /* 어두운 배경 */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ecf0f1;
+            padding-top: 20px;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column; 
+            align-items: center;
+            max-width: 400px; 
+            width: 90%; /* 화면 너비에 반응 */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #34495e;
+            padding: 15px;
+        }
+
+        /* 정보 패널 */
+        #info-panel {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 5px 10px;
+            background-color: #2980b9;
+            border-radius: 5px;
+        }
+
+        #info-panel p {
+            margin: 0;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        #start-button {
+            padding: 8px 15px;
+            font-size: 1em;
+            font-weight: bold;
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #start-button:hover {
+            background-color: #e67e22;
+        }
+
+        /* 게임 보드 스타일링 (10x20) */
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr); /* 10열 */
+            width: 100%;
+            /* 높이를 너비의 2배로 설정하여 10x20 비율 유지 */
+            aspect-ratio: 1 / 2; 
+            border: 5px solid #2c3e50;
+            background-color: #1c2833;
+        }
+
+        /* 개별 셀(블록) 스타일링 */
+        .square {
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            box-sizing: border-box; /* 패딩과 경계를 너비에 포함 */
+        }
+
+        /* 모바일 조작 버튼 */
+        #controls {
+            display: grid;
+            grid-template-areas: 
+                ". rotate ."
+                "left down right"
+                ". drop .";
+            gap: 10px;
+            width: 100%;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #34495e;
+            border-radius: 10px;
+        }
+
+        #controls button {
+            padding: 15px;
+            font-size: 24px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            /* 모바일 터치 반응 속도를 높이기 위해 */
+            -webkit-tap-highlight-color: transparent; 
+            transition: background-color 0.1s;
+        }
+
+        #controls button:active {
+            opacity: 0.8;
+        }
+
+        #rotate-button { grid-area: rotate; }
+        #left-button { grid-area: left; }
+        #right-button { grid-area: right; }
+        #down-button { grid-area: down; }
+        #drop-button { grid-area: drop; background-color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <div id="info-panel">
+            <p>Score: <span id="score">0</span></p>
+            <p>Next: <div id="next-tetromino" style="display:inline-block;"></div></p>
+            <button id="start-button">게임 시작</button>
+        </div>
+
+        <div id="grid">
+            </div>
+        
+        <div id="controls">
+            <button id="rotate-button">🔄</button>
+            <button id="left-button">◀️</button>
+            <button id="right-button">▶️</button>
+            <button id="down-button">⬇️</button>
+            <button id="drop-button">🔥</button>
+        </div>
+    </div>
+
+    <script>
+        //
+        // JAVASCRIPT 로직
+        //
+
+        const grid = document.getElementById('grid');
+        const scoreDisplay = document.getElementById('score');
+        const startButton = document.getElementById('start-button');
+        
+        // 게임 설정
+        const width = 10;
+        const height = 20;
+        let score = 0;
+        let squares = []; // 게임 보드의 DOM 요소 저장 배열
+
+        // 1. 게임 보드 초기화 및 렌더링
+        function createBoard() {
+            for (let i = 0; i < width * height; i++) {
+                const square = document.createElement('div');
+                square.classList.add('square');
+                grid.appendChild(square);
+                squares.push(square);
+            }
+        }
+        createBoard();
+
+        // ** 실제 테트리스 블록 데이터 (7가지 모양) **
+        // L, J, T, I, O, S, Z (0으로 회전 상태)
+        const theTetrominoes = [
+            // L-Tetromino
+            [[1, width + 1, width * 2 + 1, 2], [width, width + 1, width + 2, width * 2 + 2], [1, width + 1, width * 2 + 1, width * 2], [width, width * 2, width * 2 + 1, width * 2 + 2]],
+            // J-Tetromino
+            [[1, width + 1, width * 2 + 1, 0], [width, width * 2, width * 2 + 1, width * 2 + 2], [1, width + 1, width * 2 + 1, width * 2 + 2], [width, width + 1, width + 2, width * 2]],
+            // T-Tetromino
+            [[1, width, width + 1, width + 2], [1, width + 1, width * 2 + 1, width], [width, width + 1, width + 2, width * 2 + 1], [1, width + 1, width * 2 + 1, width + 2]],
+            // I-Tetromino
+            [[1, width + 1, width * 2 + 1, width * 3 + 1], [width, width + 1, width + 2, width + 3], [1, width + 1, width * 2 + 1, width * 3 + 1], [width, width + 1, width + 2, width + 3]],
+            // O-Tetromino
+            [[0, 1, width, width + 1], [0, 1, width, width + 1], [0, 1, width, width + 1], [0, 1, width, width + 1]],
+            // S-Tetromino
+            [[width, width + 1, 1, 2], [0, width, width + 1, width * 2 + 1], [width, width + 1, 1, 2], [0, width, width + 1, width * 2 + 1]],
+            // Z-Tetromino
+            [[0, 1, width + 1, width + 2], [1, width, width + 1, width * 2], [0, 1, width + 1, width + 2], [1, width, width + 1, width * 2]]
+        ];
+        
+        const colors = ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#2ecc71', '#e67e22', '#1abc9c'];
+
+        let currentPosition = 4; // 블록의 시작 위치 (상단 중앙)
+        let currentRotation = 0;
+        let random = Math.floor(Math.random() * theTetrominoes.length);
+        let current = theTetrominoes[random][currentRotation];
+        let currentColor = colors[random];
+        let timerId;
+
+        // 블록 그리기
+        function draw() {
+            current.forEach(index => {
+                squares[currentPosition + index].classList.add('tetromino');
+                squares[currentPosition + index].style.backgroundColor = currentColor;
+            });
+        }
+
+        // 블록 지우기
+        function undraw() {
+            current.forEach(index => {
+                squares[currentPosition + index].classList.remove('tetromino');
+                squares[currentPosition + index].style.backgroundColor = '';
+            });
+        }
+
+        // ** 2. 핵심 로직: 이동 및 충돌 감지 (placeholder) **
+
+        // 충돌 감지 함수 (코드를 완성해야 할 부분)
+        function checkCollision(newPosition, tetromino) {
+            // TODO: 새로운 위치(newPosition)에서 tetromino가
+            // 1. 보드 경계를 벗어나는지 확인 (좌/우/바닥)
+            // 2. 이미 고정된 블록과 겹치는지 확인
+            // 충돌하면 true, 아니면 false 반환
+            return false; 
+        }
+
+        // 블록 이동
+        function move(direction) {
+            undraw();
+            const newPosition = currentPosition + direction;
+            if (!checkCollision(newPosition, current)) {
+                currentPosition = newPosition;
+            }
+            draw();
+        }
+
+        // 블록 회전
+        function rotate() {
+            undraw();
+            let nextRotation = (currentRotation + 1) % current.length;
+            let nextTetromino = theTetrominoes[random][nextRotation];
+            
+            // TODO: 회전 후 충돌 체크 및 '벽차기(Wall Kick)' 로직 구현
+            if (!checkCollision(currentPosition, nextTetromino)) {
+                currentRotation = nextRotation;
+                current = nextTetromino;
+            }
+            draw();
+        }
+        
+        // 블록 한 칸 드롭
+        function drop() {
+            undraw();
+            const newPosition = currentPosition + width; // 아래로 한 칸
+            
+            if (checkCollision(newPosition, current)) {
+                // TODO: 충돌 발생 시
+                // 1. 블록을 보드에 '고정'하는 merge 함수 호출
+                // 2. 줄 제거 clearLines 함수 호출
+                // 3. 새 블록 생성 newTetromino 함수 호출
+                console.log('Block Merged!');
+                // clearInterval(timerId); // 임시 중단
+            } else {
+                currentPosition = newPosition;
+            }
+            draw();
+        }
+
+
+        // ** 3. 모바일 조작 이벤트 리스너 **
+
+        document.getElementById('rotate-button').addEventListener('click', () => {
+            rotate();
+        });
+
+        document.getElementById('left-button').addEventListener('click', () => {
+            move(-1); // -1: 왼쪽 한 칸 이동
+        });
+
+        document.getElementById('right-button').addEventListener('click', () => {
+            move(1); // 1: 오른쪽 한 칸 이동
+        });
+        
+        document.getElementById('down-button').addEventListener('click', () => {
+            // soft drop (부드럽게 한 칸씩 내리기)
+            drop();
+        });
+
+        document.getElementById('drop-button').addEventListener('click', () => {
+            // TODO: hard drop (바닥까지 한 번에 내리기) 로직 구현
+            console.log('Hard Drop!');
+        });
+        
+        startButton.addEventListener('click', () => {
+            if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+                startButton.textContent = '재개';
+            } else {
+                // 게임 시작
+                if (!timerId) {
+                    // draw(); // 게임 시작 시 초기 블록 그리기
+                    timerId = setInterval(drop, 1000); // 1초마다 drop
+                    startButton.textContent = '일시정지';
+                }
+            }
+        });
+
+        // 초기 시작
+        draw(); 
+    </script>
+</body>
+</html>
