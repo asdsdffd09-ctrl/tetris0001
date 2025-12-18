@@ -3,105 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>모바일 테트리스 (수정완료)</title>
-    
+    <title>모바일 테트리스 (충돌 수정본)</title>
     <style>
         body {
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
             align-items: center;
-            min-height: 100vh;
-            margin: 0;
             background-color: #2c3e50;
-            font-family: sans-serif;
             color: #ecf0f1;
+            font-family: sans-serif;
+            margin: 0;
             padding-top: 20px;
-            touch-action: manipulation; /* 모바일 더블탭 줌 방지 */
+            touch-action: manipulation;
         }
-
         #game-container {
-            display: flex;
-            flex-direction: column; 
-            align-items: center;
-            max-width: 320px; 
-            width: 90%; 
+            width: 300px;
             background-color: #34495e;
             padding: 15px;
             border-radius: 10px;
         }
-
         #info-panel {
-            width: 100%;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding: 5px 10px;
-            background-color: #2980b9;
-            border-radius: 5px;
-            box-sizing: border-box;
+            margin-bottom: 10px;
         }
-
         #grid {
             display: grid;
             grid-template-columns: repeat(10, 1fr);
             width: 100%;
-            aspect-ratio: 1 / 2; 
-            border: 2px solid #2c3e50;
+            aspect-ratio: 1 / 2;
             background-color: #1c2833;
+            border: 2px solid #2c3e50;
         }
-
         .square {
-            border: 1px solid rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(255, 255, 255, 0.05);
             box-sizing: border-box;
         }
-
-        .taken { background-color: #7f8c8d; } /* 고정된 블록 표시용 */
-
+        /* 고정된 블록을 확실히 보이게 함 */
+        .taken {
+            border: 1px solid #2c3e50 !important;
+        }
         #controls {
             display: grid;
-            grid-template-areas: 
-                ". rotate ."
-                "left down right"
-                ". drop .";
+            grid-template-areas: ". up ." "left down right" ". drop .";
             gap: 10px;
-            width: 100%;
             margin-top: 20px;
         }
-
-        #controls button {
+        button {
             padding: 15px;
-            font-size: 20px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: none;
             background-color: #3498db;
             color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
         }
-
-        #drop-button { grid-area: drop; background-color: #e74c3c !important; }
-        #rotate-button { grid-area: rotate; }
-        #left-button { grid-area: left; }
-        #right-button { grid-area: right; }
-        #down-button { grid-area: down; }
+        #drop-button { grid-area: drop; background-color: #e74c3c; }
     </style>
 </head>
 <body>
 
     <div id="game-container">
         <div id="info-panel">
-            <p>Score: <span id="score">0</span></p>
+            <span>Score: <b id="score">0</b></span>
             <button id="start-button">게임 시작</button>
         </div>
-
         <div id="grid"></div>
-        
         <div id="controls">
-            <button id="rotate-button">🔄</button>
-            <button id="left-button">◀️</button>
-            <button id="right-button">▶️</button>
-            <button id="down-button">⬇️</button>
+            <button id="rotate-button" style="grid-area: up;">🔄</button>
+            <button id="left-button" style="grid-area: left;">◀️</button>
+            <button id="right-button" style="grid-area: right;">▶️</button>
+            <button id="down-button" style="grid-area: down;">⬇️</button>
             <button id="drop-button">🔥</button>
         </div>
     </div>
@@ -110,15 +81,13 @@
         const grid = document.getElementById('grid');
         const scoreDisplay = document.getElementById('score');
         const startButton = document.getElementById('start-button');
-        
         const width = 10;
         const height = 20;
+        let squares = [];
         let score = 0;
-        let squares = []; 
         let timerId = null;
-        let dropSpeed = 800; 
-        
-        // 1. 보드 생성
+
+        // 1. 보드 생성 (바닥 stopper를 클래스로 명확히 구분)
         function createBoard() {
             for (let i = 0; i < width * height; i++) {
                 const square = document.createElement('div');
@@ -126,61 +95,52 @@
                 grid.appendChild(square);
                 squares.push(square);
             }
-            // 바닥 경계 (보이지 않는 바닥)
+            // 실제 바닥 판정용 투명 블록 10개 추가
             for (let i = 0; i < width; i++) {
                 const stopper = document.createElement('div');
-                stopper.classList.add('taken'); 
-                stopper.style.display = 'none'; // 화면엔 안보임
+                stopper.classList.add('taken', 'stopper');
+                stopper.style.display = 'none';
                 grid.appendChild(stopper);
                 squares.push(stopper);
             }
         }
         createBoard();
 
-        const theTetrominoes = [
-            [[1, width + 1, width * 2 + 1, 2], [width, width + 1, width + 2, width * 2 + 2], [1, width + 1, width * 2 + 1, width * 2], [width, width * 2, width * 2 + 1, width * 2 + 2]], // L
-            [[0, width, width * 2, width * 2 + 1], [width, width + 1, width + 2, 2], [1, 2, width + 2, width * 2 + 2], [width * 2, width * 2 + 1, width + 1, 1]], // J
-            [[1, width, width + 1, width + 2], [1, width + 1, width * 2 + 1, width], [width, width + 1, width + 2, width * 2 + 1], [1, width + 1, width * 2 + 1, width + 2]], // T
-            [[1, width + 1, width * 2 + 1, width * 3 + 1], [width, width + 1, width + 2, width + 3], [1, width + 1, width * 2 + 1, width * 3 + 1], [width, width + 1, width + 2, width + 3]], // I
-            [[0, 1, width, width + 1], [0, 1, width, width + 1], [0, 1, width, width + 1], [0, 1, width, width + 1]], // O
-            [[width, width + 1, 1, 2], [0, width, width + 1, width * 2 + 1], [width, width + 1, 1, 2], [0, width, width + 1, width * 2 + 1]], // S
-            [[0, 1, width + 1, width + 2], [1, width, width + 1, width * 2], [0, 1, width + 1, width + 2], [1, width, width + 1, width * 2]] // Z
-        ];
+        // 테트로미노 정의
+        const lTetromino = [ [1, width+1, width*2+1, 2], [width, width+1, width+2, width*2+2], [1, width+1, width*2+1, width*2], [width, width*2, width*2+1, width*2+2] ];
+        const zTetromino = [ [0, width, width+1, width*2+1], [width+1, width+2, width*2, width*2+1], [0, width, width+1, width*2+1], [width+1, width+2, width*2, width*2+1] ];
+        const tTetromino = [ [1, width, width+1, width+2], [1, width+1, width+2, width*2+1], [width, width+1, width+2, width*2+1], [1, width, width+1, width*2+1] ];
+        const oTetromino = [ [0, 1, width, width+1], [0, 1, width, width+1], [0, 1, width, width+1], [0, 1, width, width+1] ];
+        const iTetromino = [ [1, width+1, width*2+1, width*3+1], [width, width+1, width+2, width+3], [1, width+1, width*2+1, width*3+1], [width, width+1, width+2, width+3] ];
         
-        const colors = ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#2ecc71', '#e67e22', '#1abc9c'];
+        const theTetrominoes = [lTetromino, zTetromino, tTetromino, oTetromino, iTetromino];
+        const colors = ['#f39c12', '#e74c3c', '#9b59b6', '#f1c40f', '#3498db'];
 
         let random = Math.floor(Math.random() * theTetrominoes.length);
         let currentRotation = 0;
         let current = theTetrominoes[random][currentRotation];
-        let currentColor = colors[random];
         let currentPosition = 4;
 
         function draw() {
             current.forEach(index => {
-                if (squares[currentPosition + index]) {
-                    squares[currentPosition + index].style.backgroundColor = currentColor;
-                }
+                squares[currentPosition + index].style.backgroundColor = colors[random];
             });
         }
 
         function undraw() {
             current.forEach(index => {
-                if (squares[currentPosition + index]) {
-                    squares[currentPosition + index].style.backgroundColor = '';
-                }
+                squares[currentPosition + index].style.backgroundColor = '';
             });
         }
 
-        // 핵심 수정: 충돌 체크 로직
+        // 충돌 확인 함수 (매우 중요)
         function checkCollision() {
-            return current.some(index => 
-                squares[currentPosition + index + width].classList.contains('taken')
-            );
+            // 다음 칸에 'taken' 클래스가 있는지 확인
+            return current.some(index => squares[currentPosition + index + width].classList.contains('taken'));
         }
 
         function moveDown() {
             if (!timerId) return;
-            
             if (!checkCollision()) {
                 undraw();
                 currentPosition += width;
@@ -192,20 +152,16 @@
 
         function freeze() {
             current.forEach(index => squares[currentPosition + index].classList.add('taken'));
-            // 새 블록 생성 전 줄 체크
-            addScore();
-            // 새 블록 설정
+            
+            // 새 블록 생성
             random = Math.floor(Math.random() * theTetrominoes.length);
             currentRotation = 0;
             current = theTetrominoes[random][currentRotation];
-            currentColor = colors[random];
             currentPosition = 4;
             
-            if (checkCollision()) {
-                gameOver();
-            } else {
-                draw();
-            }
+            addScore(); // 줄 지우기 체크
+            draw();
+            gameOver();
         }
 
         function moveLeft() {
@@ -230,17 +186,16 @@
 
         function rotate() {
             undraw();
-            const oldRotation = currentRotation;
-            currentRotation = (currentRotation + 1) % theTetrominoes[random].length;
-            current = theTetrominoes[random][currentRotation];
+            const nextRotation = (currentRotation + 1) % theTetrominoes[random].length;
+            const nextCurrent = theTetrominoes[random][nextRotation];
             
-            // 회전 시 벽/블록 충돌 방지
-            if (current.some(index => 
-                (currentPosition + index) % width === 0 && (currentPosition + index) % width === width - 1 ||
-                squares[currentPosition + index].classList.contains('taken')
-            )) {
-                currentRotation = oldRotation;
-                current = theTetrominoes[random][currentRotation];
+            // 벽이나 블록에 걸리면 회전 안함
+            const isAtRight = nextCurrent.some(index => (currentPosition + index) % width === width - 1);
+            const isAtLeft = nextCurrent.some(index => (currentPosition + index) % width === 0);
+            
+            if (!nextCurrent.some(index => squares[currentPosition + index].classList.contains('taken'))) {
+                currentRotation = nextRotation;
+                current = nextCurrent;
             }
             draw();
         }
@@ -250,52 +205,52 @@
                 const row = [i, i+1, i+2, i+3, i+4, i+5, i+6, i+7, i+8, i+9];
                 if (row.every(index => squares[index].classList.contains('taken'))) {
                     score += 10;
-                    scoreDisplay.innerHTML = score;
+                    scoreDisplay.innerText = score;
                     row.forEach(index => {
                         squares[index].classList.remove('taken');
                         squares[index].style.backgroundColor = '';
                     });
+                    // 줄 내리기 로직
                     const squaresRemoved = squares.splice(i, width);
                     squares = squaresRemoved.concat(squares);
+                    // 바닥 stopper가 항상 마지막에 있도록 보장
+                    const stoppers = squares.filter(s => s.classList.contains('stopper'));
+                    const others = squares.filter(s => !s.classList.contains('stopper'));
+                    squares = others.concat(stoppers);
+                    
                     squares.forEach(cell => grid.appendChild(cell));
                 }
             }
         }
 
         function gameOver() {
-            clearInterval(timerId);
-            timerId = null;
-            alert("Game Over! 점수: " + score);
-            location.reload();
+            if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
+                scoreDisplay.innerText = score + " (Game Over)";
+                clearInterval(timerId);
+                timerId = null;
+            }
         }
 
-        function startStop() {
+        startButton.addEventListener('click', () => {
             if (timerId) {
                 clearInterval(timerId);
                 timerId = null;
-                startButton.innerText = "재개";
             } else {
                 draw();
-                timerId = setInterval(moveDown, dropSpeed);
-                startButton.innerText = "일시정지";
+                timerId = setInterval(moveDown, 800);
             }
-        }
+        });
 
-        // 버튼 이벤트
-        startButton.addEventListener('click', startStop);
-        document.getElementById('left-button').addEventListener('click', moveLeft);
-        document.getElementById('right-button').addEventListener('click', moveRight);
-        document.getElementById('rotate-button').addEventListener('click', rotate);
-        document.getElementById('down-button').addEventListener('click', moveDown);
-        document.getElementById('drop-button').addEventListener('click', () => {
-            if (!timerId) return;
-            while (!checkCollision()) {
-                undraw();
-                currentPosition += width;
-            }
+        // 컨트롤 연결
+        document.getElementById('left-button').onclick = moveLeft;
+        document.getElementById('right-button').onclick = moveRight;
+        document.getElementById('rotate-button').onclick = rotate;
+        document.getElementById('down-button').onclick = moveDown;
+        document.getElementById('drop-button').onclick = () => {
+            while(!checkCollision()) { undraw(); currentPosition += width; }
             draw();
             freeze();
-        });
+        };
 
     </script>
 </body>
