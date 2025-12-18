@@ -52,12 +52,11 @@
             border: none;
             margin-bottom: 20px;
             width: 80%;
+            text-align: center;
         }
 
         /* 게임 화면 스타일 */
-        #game-container {
-            width: 100%;
-        }
+        #game-container { width: 100%; }
         #info-panel {
             display: flex;
             justify-content: space-between;
@@ -73,7 +72,6 @@
             border: 2px solid #2c3e50;
             position: relative;
         }
-        /* 상단 경계선 */
         #grid::after {
             content: "";
             position: absolute;
@@ -95,12 +93,21 @@
         }
         #drop-button { grid-area: drop; background-color: #e74c3c; }
 
-        /* 결과 창 점수 강조 */
+        /* 결과 창 스타일 */
         #final-score {
-            font-size: 40px;
+            font-size: 48px;
             color: #f1c40f;
-            margin: 20px 0;
+            margin: 10px 0;
+            font-weight: bold;
         }
+        #retry-button {
+            display: none; /* 처음에 숨김 */
+            background-color: #2ecc71;
+            margin-top: 20px;
+            width: 100%;
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         /* 배경 경고 애니메이션 */
         .warning-blink { animation: blink 0.5s infinite; }
@@ -144,11 +151,11 @@
     </div>
 
     <div id="result-screen" class="screen">
-        <h1>탈락하셨습니다!</h1>
-        <p id="result-player-name"></p>
+        <h1 style="color: #e74c3c; margin-bottom: 5px;">GAME OVER</h1>
+        <p id="result-player-name" style="margin-top: 0;"></p>
+        <p style="margin-bottom: 0;">최종 점수</p>
         <div id="final-score">0</div>
-        <p>점수를 기록했습니다.</p>
-        <button id="retry-button" style="background-color: #2ecc71;">다시하기</button>
+        <button id="retry-button">다시하기</button>
     </div>
 
     <script>
@@ -161,13 +168,11 @@
         let timerId = null;
         let nickname = "";
 
-        // 화면 전환 함수
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
         }
 
-        // 로그인 버튼 클릭
         document.getElementById('login-button').onclick = () => {
             nickname = document.getElementById('nickname-input').value.trim();
             if (nickname === "") {
@@ -178,16 +183,15 @@
             showScreen('welcome-screen');
         };
 
-        // 게임 시작 버튼 클릭
         document.getElementById('start-game-button').onclick = () => {
             document.getElementById('player-name').innerText = nickname;
             showScreen('game-screen');
             initGame();
         };
 
-        // 다시하기 버튼 클릭 (첫 화면으로 이동)
         document.getElementById('retry-button').onclick = () => {
-            document.getElementById('nickname-input').value = ""; // 입력창 초기화
+            document.getElementById('nickname-input').value = "";
+            document.getElementById('retry-button').style.display = 'none'; // 다음 판을 위해 다시 숨김
             showScreen('login-screen');
         };
 
@@ -264,7 +268,6 @@
         function freeze() {
             current.forEach(index => squares[currentPosition + index].classList.add('taken'));
             
-            // 탈락 체크 (경계선)
             if (current.some(index => (currentPosition + index) < width * 3)) {
                 gameOver();
                 return;
@@ -278,7 +281,6 @@
             addScore();
             draw();
             
-            // 위험 경고
             const isDanger = squares.slice(0, 50).some(s => s.classList.contains('taken') && !s.classList.contains('stopper'));
             if (isDanger) {
                 document.body.classList.add('warning-blink');
@@ -347,6 +349,11 @@
             
             // 결과 화면으로 전환
             showScreen('result-screen');
+
+            // 2초 뒤에 다시하기 버튼 보이기
+            setTimeout(() => {
+                document.getElementById('retry-button').style.display = 'block';
+            }, 2000);
         }
 
         // 버튼 이벤트
