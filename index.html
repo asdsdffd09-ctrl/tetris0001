@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>모바일 테트리스 (경고선 기능 추가)</title>
+    <title>모바일 테트리스 (충돌 수정본)</title>
     <style>
         body {
             display: flex;
@@ -15,24 +15,12 @@
             margin: 0;
             padding-top: 20px;
             touch-action: manipulation;
-            transition: background-color 0.2s; /* 배경색 변경 애니메이션 */
         }
-        /* 경고 상태일 때 클래스 */
-        body.warning {
-            animation: blink 0.5s infinite;
-        }
-        @keyframes blink {
-            0% { background-color: #2c3e50; }
-            50% { background-color: #c0392b; }
-            100% { background-color: #2c3e50; }
-        }
-
         #game-container {
             width: 300px;
             background-color: #34495e;
             padding: 15px;
             border-radius: 10px;
-            position: relative;
         }
         #info-panel {
             display: flex;
@@ -46,24 +34,12 @@
             aspect-ratio: 1 / 2;
             background-color: #1c2833;
             border: 2px solid #2c3e50;
-            position: relative;
         }
-        /* 경계선 스타일 */
-        #grid::after {
-            content: "";
-            position: absolute;
-            top: 15%; /* 20줄 중 3줄 지점 (3/20 = 15%) */
-            left: 0;
-            width: 100%;
-            border-top: 2px dashed #e74c3c;
-            z-index: 10;
-            pointer-events: none;
-        }
-
         .square {
             border: 1px solid rgba(255, 255, 255, 0.05);
             box-sizing: border-box;
         }
+        /* 고정된 블록을 확실히 보이게 함 */
         .taken {
             border: 1px solid #2c3e50 !important;
         }
@@ -80,7 +56,6 @@
             border: none;
             background-color: #3498db;
             color: white;
-            cursor: pointer;
         }
         #drop-button { grid-area: drop; background-color: #e74c3c; }
     </style>
@@ -111,8 +86,8 @@
         let squares = [];
         let score = 0;
         let timerId = null;
-        let isWarning = false;
 
+        // 1. 보드 생성 (바닥 stopper를 클래스로 명확히 구분)
         function createBoard() {
             for (let i = 0; i < width * height; i++) {
                 const square = document.createElement('div');
@@ -120,6 +95,7 @@
                 grid.appendChild(square);
                 squares.push(square);
             }
+            // 실제 바닥 판정용 투명 블록 10개 추가
             for (let i = 0; i < width; i++) {
                 const stopper = document.createElement('div');
                 stopper.classList.add('taken', 'stopper');
@@ -130,6 +106,7 @@
         }
         createBoard();
 
+        // 테트로미노 정의
         const lTetromino = [ [1, width+1, width*2+1, 2], [width, width+1, width+2, width*2+2], [1, width+1, width*2+1, width*2], [width, width*2, width*2+1, width*2+2] ];
         const zTetromino = [ [0, width, width+1, width*2+1], [width+1, width+2, width*2, width*2+1], [0, width, width+1, width*2+1], [width+1, width+2, width*2, width*2+1] ];
         const tTetromino = [ [1, width, width+1, width+2], [1, width+1, width+2, width*2+1], [width, width+1, width+2, width*2+1], [1, width, width+1, width*2+1] ];
@@ -146,19 +123,19 @@
 
         function draw() {
             current.forEach(index => {
-                if(squares[currentPosition + index])
-                    squares[currentPosition + index].style.backgroundColor = colors[random];
+                squares[currentPosition + index].style.backgroundColor = colors[random];
             });
         }
 
         function undraw() {
             current.forEach(index => {
-                if(squares[currentPosition + index])
-                    squares[currentPosition + index].style.backgroundColor = '';
+                squares[currentPosition + index].style.backgroundColor = '';
             });
         }
 
+        // 충돌 확인 함수 (매우 중요)
         function checkCollision() {
+            // 다음 칸에 'taken' 클래스가 있는지 확인
             return current.some(index => squares[currentPosition + index + width].classList.contains('taken'));
         }
 
@@ -176,46 +153,24 @@
         function freeze() {
             current.forEach(index => squares[currentPosition + index].classList.add('taken'));
             
-            // 1. 패배 조건 체크: 경계선(상위 30칸, 인덱스 0~29)에 블록이 고정되면 게임 오버
-            const isGameOver = current.some(index => (currentPosition + index) < width * 3);
-            
-            if (isGameOver) {
-                gameOver();
-                return;
-            }
-
-            // 2. 경고 체크: 상위 3줄 근처에 블록이 있으면 2초간 깜박임
-            checkWarning();
-
+            // 새 블록 생성
             random = Math.floor(Math.random() * theTetrominoes.length);
             currentRotation = 0;
             current = theTetrominoes[random][currentRotation];
             currentPosition = 4;
             
-            addScore();
+            addScore(); // 줄 지우기 체크
             draw();
-        }
-
-        // 경고 로직: 블록이 3~5번 줄 사이에 쌓이면 경고 발생
-        function checkWarning() {
-            const dangerZone = squares.slice(0, width * 5); // 상위 5줄 검사
-            const hasBlocks = dangerZone.some(s => s.classList.contains('taken'));
-            
-            if (hasBlocks && !isWarning) {
-                isWarning = true;
-                document.body.classList.add('warning');
-                setTimeout(() => {
-                    document.body.classList.remove('warning');
-                    isWarning = false;
-                }, 2000); // 2초간 깜박임
-            }
+            gameOver();
         }
 
         function moveLeft() {
             undraw();
             const isAtLeftEdge = current.some(index => (currentPosition + index) % width === 0);
             if (!isAtLeftEdge) currentPosition -= 1;
-            if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) currentPosition += 1;
+            if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
+                currentPosition += 1;
+            }
             draw();
         }
 
@@ -223,7 +178,9 @@
             undraw();
             const isAtRightEdge = current.some(index => (currentPosition + index) % width === width - 1);
             if (!isAtRightEdge) currentPosition += 1;
-            if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) currentPosition -= 1;
+            if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
+                currentPosition -= 1;
+            }
             draw();
         }
 
@@ -231,6 +188,11 @@
             undraw();
             const nextRotation = (currentRotation + 1) % theTetrominoes[random].length;
             const nextCurrent = theTetrominoes[random][nextRotation];
+            
+            // 벽이나 블록에 걸리면 회전 안함
+            const isAtRight = nextCurrent.some(index => (currentPosition + index) % width === width - 1);
+            const isAtLeft = nextCurrent.some(index => (currentPosition + index) % width === 0);
+            
             if (!nextCurrent.some(index => squares[currentPosition + index].classList.contains('taken'))) {
                 currentRotation = nextRotation;
                 current = nextCurrent;
@@ -248,23 +210,25 @@
                         squares[index].classList.remove('taken');
                         squares[index].style.backgroundColor = '';
                     });
+                    // 줄 내리기 로직
                     const squaresRemoved = squares.splice(i, width);
                     squares = squaresRemoved.concat(squares);
+                    // 바닥 stopper가 항상 마지막에 있도록 보장
                     const stoppers = squares.filter(s => s.classList.contains('stopper'));
                     const others = squares.filter(s => !s.classList.contains('stopper'));
                     squares = others.concat(stoppers);
+                    
                     squares.forEach(cell => grid.appendChild(cell));
                 }
             }
         }
 
         function gameOver() {
-            scoreDisplay.innerText = score + " - [DEAD] 경계선 초과!";
-            document.body.style.backgroundColor = "#c0392b";
-            clearInterval(timerId);
-            timerId = null;
-            alert("경계선을 넘었습니다! 게임 오버!");
-            location.reload();
+            if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
+                scoreDisplay.innerText = score + " (Game Over)";
+                clearInterval(timerId);
+                timerId = null;
+            }
         }
 
         startButton.addEventListener('click', () => {
@@ -277,20 +241,13 @@
             }
         });
 
+        // 컨트롤 연결
         document.getElementById('left-button').onclick = moveLeft;
         document.getElementById('right-button').onclick = moveRight;
         document.getElementById('rotate-button').onclick = rotate;
         document.getElementById('down-button').onclick = moveDown;
         document.getElementById('drop-button').onclick = () => {
-            if(!timerId) return;
             while(!checkCollision()) { undraw(); currentPosition += width; }
             draw();
             freeze();
         };
-
-    </script>
-</body>
-</html>
-    </script>
-</body>
-</html>
