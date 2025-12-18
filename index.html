@@ -40,6 +40,7 @@
             padding: 30px 15px;
             border-radius: 10px;
             text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
         .active { display: flex; }
 
@@ -55,10 +56,7 @@
 
         /* 게임 화면 스타일 */
         #game-container {
-            width: 300px;
-            background-color: #34495e;
-            padding: 15px;
-            border-radius: 10px;
+            width: 100%;
         }
         #info-panel {
             display: flex;
@@ -96,6 +94,13 @@
             margin-top: 20px;
         }
         #drop-button { grid-area: drop; background-color: #e74c3c; }
+
+        /* 결과 창 점수 강조 */
+        #final-score {
+            font-size: 40px;
+            color: #f1c40f;
+            margin: 20px 0;
+        }
 
         /* 배경 경고 애니메이션 */
         .warning-blink { animation: blink 0.5s infinite; }
@@ -138,6 +143,14 @@
         </div>
     </div>
 
+    <div id="result-screen" class="screen">
+        <h1>탈락하셨습니다!</h1>
+        <p id="result-player-name"></p>
+        <div id="final-score">0</div>
+        <p>점수를 기록했습니다.</p>
+        <button id="retry-button" style="background-color: #2ecc71;">다시하기</button>
+    </div>
+
     <script>
         const grid = document.getElementById('grid');
         const scoreDisplay = document.getElementById('score');
@@ -172,8 +185,14 @@
             initGame();
         };
 
+        // 다시하기 버튼 클릭 (첫 화면으로 이동)
+        document.getElementById('retry-button').onclick = () => {
+            document.getElementById('nickname-input').value = ""; // 입력창 초기화
+            showScreen('login-screen');
+        };
+
         function createBoard() {
-            grid.innerHTML = ""; // 초기화
+            grid.innerHTML = ""; 
             squares = [];
             for (let i = 0; i < width * height; i++) {
                 const square = document.createElement('div');
@@ -245,7 +264,7 @@
         function freeze() {
             current.forEach(index => squares[currentPosition + index].classList.add('taken'));
             
-            // 경계선 체크 (위에서 3줄 = index 30 미만)
+            // 탈락 체크 (경계선)
             if (current.some(index => (currentPosition + index) < width * 3)) {
                 gameOver();
                 return;
@@ -259,7 +278,7 @@
             addScore();
             draw();
             
-            // 위험 경고 (5줄 미만으로 쌓이면 깜박임)
+            // 위험 경고
             const isDanger = squares.slice(0, 50).some(s => s.classList.contains('taken') && !s.classList.contains('stopper'));
             if (isDanger) {
                 document.body.classList.add('warning-blink');
@@ -321,8 +340,13 @@
         function gameOver() {
             clearInterval(timerId);
             timerId = null;
-            alert(`GAME OVER!\n${nickname}님의 최종 점수: ${score}`);
-            location.reload(); 
+            
+            // 결과 화면 데이터 설정
+            document.getElementById('result-player-name').innerText = `${nickname}님의 기록`;
+            document.getElementById('final-score').innerText = `${score}점`;
+            
+            // 결과 화면으로 전환
+            showScreen('result-screen');
         }
 
         // 버튼 이벤트
